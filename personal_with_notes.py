@@ -151,13 +151,16 @@ class Block(nn.Module):
         self.sa = MultiHeadAttention(n_head, head_size)
         self.ffwd = FeedForward(n_embd)
 
+        # Layer norm: same as batch norm, but normalizing across rows instead of the batches.
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
     def forward(self, x):
-        x = x + self.sa(x)
-        x = x + self.ffwd(x)
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
         return x
 
-# super simple bigram model
-class BigramLanguageModel(nn.Module):
+class GPTLanguageModel(nn.Module):
 
     def __init__(self):
         super().__init__()
@@ -168,10 +171,8 @@ class BigramLanguageModel(nn.Module):
             Block(n_embd, n_head=4),
             Block(n_embd, n_head=4),
             Block(n_embd, n_head=4),
+            nn.LayerNorm(n_embd)
         )
-        self.lm_head = nn.Linear(n_embd, vocab_size)
-        self.sa_heads = MultiHeadAttention(4, n_embd // 4)
-        self.ffwd = FeedForward(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -213,7 +214,7 @@ class BigramLanguageModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
         return idx
 
-model = BigramLanguageModel()
+model = GPTLanguageModel()
 m = model.to(device)
 
 # create a PyTorch optimizer
